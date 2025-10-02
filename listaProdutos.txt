@@ -1,0 +1,13 @@
+
+Lista de produtos KG:
+
+1   Filé de frango R$ 2,00 
+2   Coxa e sobrecoxa R$ 0,50 
+3   Carne moída bovina R$ 1,00
+4   Alcatra R$ 0,70
+5   Linguiça toscana R$ 100,00
+6   Peito de peru R$ 1000,00
+7   Filé de tilápia R$ 2,50
+8   Salmão R$ 1,00
+9   Bacalhau R$ 50,00
+10  Carne suína R$ 20,00
