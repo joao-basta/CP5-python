@@ -26,72 +26,32 @@ def logar():
         print("Arquivo da conta não encontrado. Crie uma conta primeiro.")
         return False
 
+# --- FUNÇÕES ---
+
 def ver_loja():
-    """Exibe a lista completa de produtos disponíveis para compra, numerada."""
+    """Exibe a lista completa de produtos disponíveis para compra, numerada,
+       com a quantidade disponível."""
+    produtos_disponiveis = []
     try:
         with open("loja.txt", "r", encoding="utf-8") as arquivo:
             print("\n--- Produtos Disponíveis na Loja ---")
-            produtos = arquivo.readlines()
-            for i, linha in enumerate(produtos, 1):
+            for i, linha in enumerate(arquivo.readlines(), 1):
                 partes = linha.strip().split(':')
-                if len(partes) == 2:
-                    nome, preco_str = partes
+                if len(partes) == 2: # Continua lendo no formato antigo caso a quantidade não esteja
+                    nome, preco_quantidade = partes
+                    preco_str, quantidade_str = preco_quantidade.split(',')
                     try:
                         preco = float(preco_str)
-                        print(f"{i} - Produto: {nome.strip()} | Preço: R$ {preco:.2f}")
-                    except ValueError:
-                        print(f"Erro ao ler o preço de: {nome.strip()}")
-            return produtos
+                        quantidade = int(quantidade_str)
+                        produtos_disponiveis.append({'nome': nome, 'preco': preco, 'quantidade': quantidade})
+                        print(f"{i} - Produto: {nome.strip()} | Preço: R$ {preco:.2f} | Disponível: {quantidade}")
+                    except (ValueError, IndexError):
+                        print(f"Erro ao ler o preço ou quantidade de: {nome.strip()}")
+            return produtos_disponiveis
     except FileNotFoundError:
         print("O arquivo da loja não foi criado.")
         return []
-
-def adicionar_ao_carrinho():
-    """Permite adicionar um produto da loja ao carrinho."""
-    produtos_loja = ver_loja()
-    if not produtos_loja:
-        return
     
-    try:
-        escolha = int(input("\nDigite o número do produto que deseja adicionar ao carrinho: "))
-        # Verifica se o número escolhido é válido
-        if 1 <= escolha <= len(produtos_loja):
-            produto_selecionado = produtos_loja[escolha - 1]
-            # Adiciona o produto ao arquivo do carrinho
-            with open("carrinho.txt", "a", encoding="utf-8") as arquivo_carrinho:
-                arquivo_carrinho.write(produto_selecionado)
-            print("Produto adicionado ao carrinho com sucesso!")
-        else:
-            print("Opção inválida.")
-    except ValueError:
-        print("Por favor, insira um número válido.")
-
-def ver_carrinho():
-    """Exibe o conteúdo do carrinho e o valor total."""
-    total = 0.0
-    quantidade = 0
-    try:
-        with open("carrinho.txt", "r", encoding="utf-8") as arquivo:
-            print("\n--- Seu Carrinho ---")
-            for linha in arquivo:
-                partes = linha.strip().split(':')
-                if len(partes) == 2:
-                    nome, preco_str = partes
-                    try:
-                        preco = float(preco_str)
-                        total += preco
-                        quantidade += 1
-                        print(f"Produto: {nome.strip()} | Preço: R$ {preco:.2f}")
-                    except ValueError:
-                        pass # Ignora linhas com preço inválido
-            
-            print(f"\nTotal de produtos no carrinho: {quantidade}")
-            print(f"Valor total da compra: R$ {total:.2f}")
-            return total
-    except FileNotFoundError:
-        print("O carrinho está vazio.")
-        return 0.0
-
 def consultarSaldo():
     """Lê e exibe o saldo do usuário."""
     try:
@@ -104,6 +64,87 @@ def consultarSaldo():
     except (FileNotFoundError, ValueError):
         print("Erro ao ler o saldo. Verifique o arquivo da conta.")
         return None
+
+def adicionar_ao_carrinho():
+    """Permite adicionar um produto da loja ao carrinho, com controle de quantidade."""
+    produtos_loja = ver_loja()
+    if not produtos_loja:
+        return
+    
+    try:
+        escolha = int(input("\nDigite o número do produto que deseja adicionar ao carrinho: "))
+        if 1 <= escolha <= len(produtos_loja):
+            produto_selecionado = produtos_loja[escolha - 1]
+            quantidade_desejada = int(input(f"Quantas unidades de '{produto_selecionado['nome']}' você deseja? "))
+            
+            # 1. Verifica se a quantidade desejada está disponível
+            if quantidade_desejada <= produto_selecionado['quantidade']:
+                
+                # 2. Adiciona o produto e a quantidade ao carrinho
+                with open("carrinho.txt", "a", encoding="utf-8") as arquivo_carrinho:
+                    arquivo_carrinho.write(f"{produto_selecionado['nome']}:{produto_selecionado['preco']},{quantidade_desejada}\n")
+                print("Produto adicionado ao carrinho com sucesso!")
+
+                # 3. Atualiza a quantidade no arquivo da loja
+                novo_estoque = produto_selecionado['quantidade'] - quantidade_desejada
+                
+                conteudo_loja = []
+                with open("loja.txt", "r", encoding="utf-8") as arquivo:
+                    conteudo_loja = arquivo.readlines()
+                
+                with open("loja.txt", "w", encoding="utf-8") as arquivo:
+                    for i, linha in enumerate(conteudo_loja):
+                        if i == escolha - 1:
+                            # Re-escreve a linha com a nova quantidade
+                            arquivo.write(f"{produto_selecionado['nome']}:{produto_selecionado['preco']},{novo_estoque}\n")
+                        else:
+                            arquivo.write(linha)
+            else:
+                print(f"Quantidade insuficiente. Apenas {produto_selecionado['quantidade']} unidades disponíveis.")
+        else:
+            print("Opção inválida.")
+    except (ValueError, IndexError):
+        print("Entrada inválida. Por favor, insira um número válido.")
+
+def ver_carrinho():
+    """Exibe o conteúdo do carrinho e o valor total."""
+    total = 0.0
+    quantidade_total = 0
+    try:
+        with open("carrinho.txt", "r", encoding="utf-8") as arquivo:
+            print("\n--- Seu Carrinho ---")
+            for linha in arquivo:
+                partes = linha.strip().split(':')
+                if len(partes) == 2:
+                    nome, preco_quantidade = partes
+                    try:
+                        preco_str, quantidade_str = preco_quantidade.split(',')
+                        preco = float(preco_str)
+                        quantidade = int(quantidade_str)
+                        total += preco * quantidade
+                        quantidade_total += quantidade
+                        print(f"Produto: {nome.strip()} | Preço: R$ {preco:.2f} | Quantidade: {quantidade}")
+                    except (ValueError, IndexError):
+                        pass
+            
+            print(f"\nTotal de produtos no carrinho: {quantidade_total}")
+            print(f"Valor total da compra: R$ {total:.2f}")
+            return total
+    except FileNotFoundError:
+        print("O carrinho está vazio.")
+        return 0.0
+
+def adicionarProd():
+    """Permite adicionar novos produtos ao arquivo de lista da loja, com quantidade."""
+    nome = input("Insira o nome do produto: ")
+    preco = input("Insira o preço do produto: ")
+    quantidade = input("Insira a quantidade disponível: ")
+    try:
+        with open("loja.txt", "a", encoding="utf-8") as arquivoPescrita:
+            arquivoPescrita.write(f"{nome}:{preco},{quantidade}\n")
+        print("Produto adicionado à loja com sucesso!")
+    except Exception as e:
+        print(f"Ocorreu um erro: {e}")
 
 def finalizar_compra():
     """Processa a compra, verifica o saldo e atualiza os arquivos."""
@@ -163,17 +204,46 @@ def verHistorico():
     except FileNotFoundError:
         print("Nenhum histórico de compras encontrado.")
 
-def adicionarProd():
-    """Permite adicionar novos produtos ao arquivo de lista da loja."""
-    nome = input("Insira o nome do produto: ")
-    preco = input("Insira o preço do produto: ")
+def adicionarSaldo():
+    """Adiciona um valor ao saldo da conta do usuário."""
     try:
-        with open("loja.txt", "a", encoding="utf-8") as arquivoPescrita:
-            arquivoPescrita.write(f"{nome}:{preco}\n")
-        print("Produto adicionado à loja com sucesso!")
-    except Exception as e:
-        print(f"Ocorreu um erro: {e}")
+        # Pede ao usuário o valor que ele quer depositar
+        valor_deposito = float(input("Digite o valor que deseja depositar: R$ "))
+        if valor_deposito <= 0:
+            print("O valor do depósito deve ser maior que zero.")
+            return
 
+        # 1. Lê o conteúdo atual do arquivo da conta
+        conteudo_conta = []
+        with open("conta.txt", "r", encoding="utf-8") as arquivo:
+            conteudo_conta = arquivo.readlines()
+        
+        # 2. Encontra a linha do saldo e atualiza o valor
+        novo_saldo = 0
+        linha_encontrada = False
+        with open("conta.txt", "w", encoding="utf-8") as arquivo:
+            for linha in conteudo_conta:
+                if "Saldo:" in linha:
+                    saldo_atual = float(linha.split(":")[1].strip())
+                    novo_saldo = saldo_atual + valor_deposito
+                    arquivo.write(f"Saldo: {novo_saldo:.2f}\n")
+                    linha_encontrada = True
+                else:
+                    arquivo.write(linha)
+        
+        if linha_encontrada:
+            print(f"Depósito de R$ {valor_deposito:.2f} efetuado com sucesso!")
+            print(f"Seu novo saldo é R$ {novo_saldo:.2f}.")
+        else:
+            print("Não foi possível encontrar a linha do saldo no arquivo da conta.")
+
+    except FileNotFoundError:
+        print("Arquivo da conta não encontrado. Crie uma conta primeiro.")
+    except ValueError:
+        print("Valor inválido. Por favor, digite um número.")
+
+# ... (o restante do seu código, incluindo o menu principal, permanece o mesmo)
+# Certifique-se de chamar as funções corretas no menu principal.
 # --- MENU PRINCIPAL E LOOP ---
 print("-------------------------------------------")
 print("   Seja bem-vindo ao açougue do Allen ")
@@ -188,16 +258,16 @@ while True:
     if not logado:
         print("2 - Logar no sistema")
     
-    print("3 - Adicionar produtos na loja")
-    
     # Opções que só aparecem se o usuário estiver logado
     if logado:
+        print("3 - Adicionar produtos na loja")
         print("4 - Adicionar produto ao carrinho")
         print("5 - Ver carrinho")
         print("6 - Consultar saldo")
         print("7 - Finalizar compra")
         if historico_disponivel:
              print("8 - Ver histórico de compras")
+        print("9 - Adicionar saldo")
     
     print("0 - Sair do sistema")
     print("-------------------------------------------")
@@ -242,6 +312,11 @@ while True:
         case 8:
             if logado and historico_disponivel:
                 verHistorico()
+            else:
+                print("Opção inválida ou você não tem permissão para acessá-la.")
+        case 9:
+            if logado:
+                adicionarSaldo()
             else:
                 print("Opção inválida ou você não tem permissão para acessá-la.")
         case 0:
