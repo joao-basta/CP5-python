@@ -1,3 +1,8 @@
+"""
+Kelwin Silva RM:566348
+João Paulo  RM:565383
+"""
+
 # --- VARIÁVEIS DE ESTADO GLOBAIS ---
 logado = False
 historico_disponivel = False
